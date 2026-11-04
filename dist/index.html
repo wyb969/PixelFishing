@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>潮汐 · 粒子海岸</title><link rel="stylesheet" href="style.css"></head>
+<body class="clean"><canvas id="sea" aria-label="宁静海湾，可拖动帆船或点击水面移动船只"></canvas><div id="error" hidden></div><div id="fishing-status" aria-live="polite"></div><button id="settings" aria-label="显示或隐藏控制面板" title="设置 · H">☷</button>
+<header><a class="brand" href="./">SURF / SEA<span>宁静海湾 · 04</span></a><button id="hide" title="隐藏控制面板 (H)">隐藏界面 ↗</button></header>
+<footer><div class="caption"><span class="eyebrow">A LITTLE CLOSER TO THE OCEAN</span><h1>让时间，随潮汐。</h1><p>蓝色、阳光，以及不断抵达的浪。</p><div class="hint">拖动小船 · 点击水面航行 <i>·</i> 滚轮调整远近 <i>·</i> H 隐藏界面</div></div><section class="panel"><div class="panel-title"><span><b class="dot"></b> LIVE OCEAN</span><span id="stats">WEBGL</span></div><label>浪的力量 <output id="heightValue">0.18</output><input id="height" type="range" min="0.05" max="1.2" value="0.18" step="0.05"></label><label>海浪速度 <output id="speedValue">0.65</output><input id="speed" type="range" min="0.2" max="1.6" value="0.65" step="0.05"></label><label>像素颗粒 <output id="pixelValue">3</output><input id="pixel" type="range" min="2" max="5" value="3" step="1"></label><div class="actions"><button id="pause">Ⅱ 暂停海浪</button><button id="reset">↺ 重置视角</button><button id="fullscreen" title="全屏">⛶</button></div></section></footer><script src="motion.js"></script><script src="clouds.js?v=simple-1"></script><script src="fishing.js?v=1"></script><script src="coast.js?v=fishing-1"></script></body></html>
+
+
+
+
+
+

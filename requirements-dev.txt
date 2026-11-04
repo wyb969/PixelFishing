@@ -1,0 +1,4 @@
+# Optional offline rendering and video-analysis tools; not needed to run the scene.
+Pillow>=10
+moderngl>=5.10
+av>=14

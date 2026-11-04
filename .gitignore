@@ -1,0 +1,14 @@
+.tools/
+*.mp4
+__pycache__/
+analysis/
+*.webm
+*.mov
+*.mkv
+*.avi
+*.pyc
+.env
+.env.*
+node_modules/
+.DS_Store
+Thumbs.db
