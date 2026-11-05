@@ -1,8 +1,8 @@
 # Publish PixelFishing on itch.io
 
-Create https://ybwangrogger.itch.io/pixelfishing at https://itch.io/game/new first.
+Create https://ybwangrogger.itch.io/fixelfishing at https://itch.io/game/new first.
 
-Suggested settings: title PixelFishing; URL pixelfishing; kind HTML; no payments; embed 960 x 540 with fullscreen enabled. After uploading, mark the html5 upload as playable in the browser. Preview before making the page public.
+Suggested settings: title PixelFishing; URL fixelfishing; kind HTML; no payments; embed 960 x 540 with fullscreen enabled. After uploading, mark the html5 upload as playable in the browser. Preview before making the page public.
 
 ## Description
 
@@ -20,6 +20,7 @@ Source: https://github.com/wyb969/PixelFishing
 
 The repository secret BUTLER_API_KEY supplies the official butler credential. Never put its value in a file or workflow.
 
-Once the game page exists, set the repository Actions variable ITCH_TARGET to ybwangrogger/pixelfishing. Run Publish to itch.io from the Actions tab for the first upload. Alternatively, supply ybwangrogger/pixelfishing as the manual workflow target input.
+Once the game page exists, set the repository Actions variable ITCH_TARGET to ybwangrogger/fixelfishing. Run Publish to itch.io from the Actions tab for the first upload. Alternatively, supply ybwangrogger/fixelfishing as the manual workflow target input.
 
-Future pushes to main that change dist/ automatically update the html5 channel when ITCH_TARGET is set. Only dist/ is uploaded. Without the variable, automatic runs are skipped. The workflow does not create the game page or configure HTML embed settings.
+Future pushes to main that change dist/ automatically update the html5 channel using the configured or default target. Only dist/ is uploaded. The default target is ybwangrogger/fixelfishing; the variable is an optional override. The workflow does not create the game page or configure HTML embed settings.
+
