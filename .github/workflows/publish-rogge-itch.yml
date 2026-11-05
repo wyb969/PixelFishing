@@ -1,0 +1,169 @@
+name: Publish ROGGE to itch.io
+
+on:
+  push:
+    branches: [automation/rogge-itch-release]
+    paths: [.github/workflows/publish-rogge-itch.yml]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rogge-itch-release
+  cancel-in-progress: false
+
+env:
+  ROGGE_COMMIT: 4f8577fb7704426df5bae9d7eb147d042dcd431c
+  BUILD_VERSION: 20261106-011424
+  ITCH_TARGET: ybwangrogger/rogue-white:html
+  GODOT_VERSION: 4.7
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Verify itch credential binding
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          test -n "$BUTLER_API_KEY" || { echo 'Missing repository secret BUTLER_API_KEY.'; exit 1; }
+          test "$ITCH_TARGET" = 'ybwangrogger/rogue-white:html'
+
+      - name: Check out pinned ROGGE release source
+        uses: actions/checkout@v4
+        with:
+          repository: wyb969/Rogge
+          ref: ${{ env.ROGGE_COMMIT }}
+          path: game
+          persist-credentials: false
+
+      - name: Verify source and version
+        shell: bash
+        run: |
+          test "$(git -C game rev-parse HEAD)" = "$ROGGE_COMMIT"
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          text=Path('game/project.godot').read_text()
+          assert re.search(r'^config/version="'+re.escape(os.environ['BUILD_VERSION'])+'"$',text,re.M)
+          assert 'variant/thread_support=false' in Path('game/export_presets.cfg').read_text()
+          PY
+
+      - name: Cache matching Godot and Web template
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/rogge-godot
+            ~/.local/share/godot/export_templates/4.7.stable
+          key: rogge-godot-4.7-linux-0b1a6c54-web-9714459d
+
+      - name: Install official Godot 4.7 and matching Web template
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://github.com/godotengine/godot-builds/releases/download/4.7-stable'
+          mkdir -p "$RUNNER_TEMP/rogge-godot" "$HOME/.local/share/godot/export_templates/4.7.stable"
+          curl --fail --location --retry 3 "$base/Godot_v4.7-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          echo "0b1a6c54c2c619c12e169fe9241edda4b81080b519451cec2984bf0d2c6cb73c  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/rogge-godot"
+          curl --fail --location --retry 3 "$base/Godot_v4.7-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          echo "9714459dc071907c0f3d5f17d608faf69e7cda21331fc5d39c4503ffa4e99eec  $RUNNER_TEMP/templates.tpz" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/templates.tpz" templates/version.txt templates/web_nothreads_release.zip -d "$RUNNER_TEMP/template-extract"
+          test "$(cat "$RUNNER_TEMP/template-extract/templates/version.txt")" = '4.7.stable'
+          cp "$RUNNER_TEMP/template-extract/templates/web_nothreads_release.zip" "$HOME/.local/share/godot/export_templates/4.7.stable/"
+          chmod +x "$RUNNER_TEMP/rogge-godot/Godot_v4.7-stable_linux.x86_64"
+          rm "$RUNNER_TEMP/templates.tpz"
+
+      - name: Import and export browser build
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot_bin="$RUNNER_TEMP/rogge-godot/Godot_v4.7-stable_linux.x86_64"
+          "$godot_bin" --version
+          mkdir -p web-build release-evidence
+          "$godot_bin" --headless --rendering-method gl_compatibility --audio-driver Dummy --path game --editor --import --quit > release-evidence/import.log 2>&1
+          "$godot_bin" --headless --rendering-method gl_compatibility --audio-driver Dummy --path game --export-release Web "$GITHUB_WORKSPACE/web-build/index.html" > release-evidence/export.log 2>&1
+
+      - name: Check actual exported PCK and web files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, re, subprocess, tempfile, zipfile
+          godot=Path(os.environ['RUNNER_TEMP'])/'rogge-godot/Godot_v4.7-stable_linux.x86_64'
+          pack=Path('web-build/index.pck').resolve()
+          checks=[]
+          for name in ['smoke_menu_layout','smoke_fan_feedback','smoke_control_cards']:
+              env=dict(os.environ,XDG_DATA_HOME=tempfile.mkdtemp(prefix='rogge-check-'))
+              result=subprocess.run([str(godot),'--headless','--rendering-method','gl_compatibility','--audio-driver','Dummy','--main-pack',str(pack),'--script','res://tools/'+name+'.gd'],env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
+              Path('release-evidence/'+name+'.log').write_text(result.stdout)
+              errors=[s for s in result.stdout.splitlines() if re.search(r'SCRIPT ERROR|Parse Error|^ERROR:',s) and not re.fullmatch(r'ERROR: \d+ resources still in use at exit \(run with --verbose for details\)\.',s)]
+              warnings=[s for s in result.stdout.splitlines() if 'leaked at exit' in s or 'resources still in use at exit' in s]
+              passed=result.returncode==0 and not errors and bool(re.search(r'\b(?:OK|PASS)\b',result.stdout))
+              check={'name':name,'passed':passed,'exit_code':result.returncode,'runtime_errors':errors,'shutdown_warnings':warnings}
+              checks.append(check);print(json.dumps(check),flush=True)
+          Path('release-evidence/packed-checks.json').write_text(json.dumps(checks,indent=2))
+          assert all(c['passed'] for c in checks),'Packed checks failed; see artifact logs.'
+          web=Path('web-build')
+          manifest={p.name:{'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()} for p in sorted(web.iterdir()) if p.is_file()}
+          for name in ['index.html','index.js','index.wasm','index.pck']:assert name in manifest
+          config=json.loads(re.search(r'const GODOT_CONFIG = (\{.*?\});',(web/'index.html').read_text()).group(1))
+          for name,size in config['fileSizes'].items():assert manifest[name]['bytes']==size
+          Path('release-evidence/web-manifest.json').write_text(json.dumps(manifest,indent=2))
+          Path('release-evidence/release-info.json').write_text(json.dumps({'repository':'wyb969/Rogge','source_commit':os.environ['ROGGE_COMMIT'],'version':os.environ['BUILD_VERSION'],'target':os.environ['ITCH_TARGET'],'browser_qa':'not run','physical_device_qa':'not run'},indent=2))
+          with zipfile.ZipFile('release-evidence/ROGGE-'+os.environ['BUILD_VERSION']+'-web.zip','w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
+              for path in sorted(web.iterdir()):
+                  if path.is_file():archive.write(path,path.name)
+          PY
+
+      - name: Install official itch Butler
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o "$RUNNER_TEMP/butler.zip"
+          unzip -q "$RUNNER_TEMP/butler.zip" -d "$RUNNER_TEMP/butler"
+          chmod +x "$RUNNER_TEMP/butler/butler"
+          "$RUNNER_TEMP/butler/butler" version
+
+      - name: Update existing ROGGE html channel
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/butler/butler" --json status ybwangrogger/rogue-white | tee release-evidence/itch-before.jsonl
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          values=[json.loads(s) for s in Path('release-evidence/itch-before.jsonl').read_text().splitlines() if s.strip()]
+          result=next(v['value'] for v in values if v.get('type')=='result')
+          assert result['target']=='ybwangrogger/rogue-white'
+          assert any(c['name']=='html' and c['uploadId']==20115514 for c in result['channels']),'Existing ROGGE html channel changed; stop for inspection.'
+          PY
+          "$RUNNER_TEMP/butler/butler" --json push web-build "$ITCH_TARGET" --userversion "$BUILD_VERSION" | tee release-evidence/itch-push.jsonl
+          "$RUNNER_TEMP/butler/butler" --json status "$ITCH_TARGET" | tee release-evidence/itch-after.jsonl
+
+      - name: Save build and release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ROGGE-${{ env.BUILD_VERSION }}
+          path: release-evidence/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Release summary
+        if: success()
+        run: |
+          {
+            echo '## ROGGE itch update'
+            echo "Version: $BUILD_VERSION"
+            echo "Source: wyb969/Rogge@$ROGGE_COMMIT"
+            echo "Updated channel: $ITCH_TARGET"
+            echo 'Play: https://ybwangrogger.itch.io/rogue-white'
+            echo '3 exported-PCK checks passed. See evidence for existing shutdown warnings.'
+            echo 'Browser and physical-device play have not been verified by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
