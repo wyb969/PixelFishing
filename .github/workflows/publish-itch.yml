@@ -1,0 +1,63 @@
+name: Publish to itch.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dist/**'
+      - '.github/workflows/publish-itch.yml'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Existing itch.io project: username/game-slug'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-itch
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || vars.ITCH_TARGET != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ITCH_TARGET: ${{ inputs.target || vars.ITCH_TARGET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check publishing configuration
+        shell: bash
+        run: |
+          if [[ ! "$ITCH_TARGET" =~ ^[a-z0-9_-]+/[a-z0-9_-]+$ ]]; then
+            echo 'Set repository variable ITCH_TARGET to an existing username/game-slug, or supply the workflow input.'
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate game logic
+        run: |
+          node --check dist/coast.js
+          node tools/prepare-preview.cjs
+      - name: Install official butler
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o "$RUNNER_TEMP/butler.zip"
+          unzip -q "$RUNNER_TEMP/butler.zip" -d "$RUNNER_TEMP/butler"
+          chmod +x "$RUNNER_TEMP/butler/butler"
+          "$RUNNER_TEMP/butler/butler" version
+      - name: Upload browser game
+        shell: bash
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          if [[ -z "$BUTLER_API_KEY" ]]; then
+            echo 'Missing repository secret BUTLER_API_KEY.'
+            exit 1
+          fi
+          "$RUNNER_TEMP/butler/butler" push dist "${ITCH_TARGET}:html5" --userversion "$GITHUB_SHA"
+
