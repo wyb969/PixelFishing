@@ -1,0 +1,67 @@
+name: Verify ROGGE itch readiness
+
+on:
+  push:
+    branches: [automation/rogge-itch-release]
+    paths: [.github/workflows/verify-rogge-itch.yml]
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_BUILD: "2339462"
+  EXPECTED_VERSION: "20261109-192900"
+  ITCH_TARGET: ybwangrogger/rogue-white:html
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Install official Butler
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          curl --fail --location --retry 3 https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default -o "$RUNNER_TEMP/butler.zip"
+          unzip -q "$RUNNER_TEMP/butler.zip" -d "$RUNNER_TEMP/butler"
+          chmod +x "$RUNNER_TEMP/butler/butler"
+
+      - name: Wait for the uploaded build to become current
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import datetime,json,os,subprocess,time
+          assert os.environ.get('BUTLER_API_KEY'),'Missing repository secret'
+          butler=Path(os.environ['RUNNER_TEMP'])/'butler/butler'
+          for attempt in range(16):
+              result=subprocess.run([str(butler),'--json','status',os.environ['ITCH_TARGET']],check=True,capture_output=True,text=True,timeout=45)
+              values=[json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+              status=next(v['value'] for v in values if v.get('type')=='result')
+              assert status['target']=='ybwangrogger/rogue-white'
+              channel=next(c for c in status['channels'] if c['name']=='html')
+              assert channel['uploadId']==20115514
+              head=channel.get('head',{})
+              pending=channel.get('pending',{})
+              snapshot={'checked_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'attempt':attempt+1,'channel':channel,'expected_build':int(os.environ['EXPECTED_BUILD']),'expected_version':os.environ['EXPECTED_VERSION']}
+              Path('evidence/itch-current.json').write_text(json.dumps(snapshot,indent=2)+'\n')
+              print(json.dumps({'attempt':attempt+1,'head':head,'pending':pending}),flush=True)
+              if head.get('id')==int(os.environ['EXPECTED_BUILD']) and head.get('userVersion')==os.environ['EXPECTED_VERSION'] and head.get('state')=='completed':
+                  print('ITCH CURRENT BUILD VERIFIED',flush=True)
+                  break
+              if pending.get('id')==int(os.environ['EXPECTED_BUILD']) and pending.get('state') in ['failed','broken']:
+                  raise RuntimeError('itch rejected the uploaded build')
+              if attempt==15:raise RuntimeError('itch has not made the uploaded build current yet')
+              time.sleep(15)
+          PY
+
+      - name: Save readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: itch-readiness-${{ env.EXPECTED_VERSION }}
+          path: evidence/
+          retention-days: 30
