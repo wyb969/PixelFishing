@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ROGGE_COMMIT: 89545184f37fcb0ef8a47691ee216232a2ac7916
-  BUILD_VERSION: 20261106-182118
+  ROGGE_COMMIT: c34a95792b417b00adf1a306855e8804c0585e7c
+  BUILD_VERSION: 20261109-191318
   ITCH_TARGET: ybwangrogger/rogue-white:html
   GODOT_VERSION: 4.7
 
@@ -84,6 +84,7 @@ jobs:
           godot_bin="$RUNNER_TEMP/rogge-godot/Godot_v4.7-stable_linux.x86_64"
           "$godot_bin" --version
           mkdir -p web-build release-evidence
+          "$godot_bin" --headless --rendering-method gl_compatibility --audio-driver Dummy --path game --editor --import --quit > release-evidence/import-warmup.log 2>&1
           "$godot_bin" --headless --rendering-method gl_compatibility --audio-driver Dummy --path game --editor --import --quit > release-evidence/import.log 2>&1
           "$godot_bin" --headless --rendering-method gl_compatibility --audio-driver Dummy --path game --export-release Web "$GITHUB_WORKSPACE/web-build/index.html" > release-evidence/export.log 2>&1
 
@@ -95,8 +96,12 @@ jobs:
           import hashlib, json, os, re, subprocess, tempfile, zipfile
           godot=Path(os.environ['RUNNER_TEMP'])/'rogge-godot/Godot_v4.7-stable_linux.x86_64'
           pack=Path('web-build/index.pck').resolve()
+          for stage in ['import','export']:
+              log=Path('release-evidence/'+stage+'.log').read_text()
+              errors=[line for line in log.splitlines() if re.search(r'SCRIPT ERROR|Parse Error|^ERROR:',line)]
+              assert not errors,stage+' errors: '+repr(errors)
           checks=[]
-          for name in ['smoke_menu_layout','smoke_fan_feedback','smoke_control_cards','smoke_session_toolbar','smoke_equipment_badges','smoke_wooden_trial','smoke_trials','smoke_growth_combo','smoke_bomb_card','smoke_arsenal_combo']:
+          for name in ['smoke_menu_layout','smoke_fan_feedback','smoke_control_cards','smoke_session_toolbar','smoke_equipment_badges','smoke_wooden_trial','smoke_trials','smoke_growth_combo','smoke_bomb_card','smoke_arsenal_combo','smoke_death_stains','smoke_ink_surf','smoke_tactical_enemies','smoke_debug_menu','smoke_stage_variation']:
               env=dict(os.environ,XDG_DATA_HOME=tempfile.mkdtemp(prefix='rogge-check-'))
               result=subprocess.run([str(godot),'--headless','--rendering-method','gl_compatibility','--audio-driver','Dummy','--main-pack',str(pack),'--script','res://tools/'+name+'.gd'],env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
               Path('release-evidence/'+name+'.log').write_text(result.stdout)
@@ -164,6 +169,6 @@ jobs:
             echo "Source: wyb969/Rogge@$ROGGE_COMMIT"
             echo "Updated channel: $ITCH_TARGET"
             echo 'Play: https://ybwangrogger.itch.io/rogue-white'
-            echo '10 exported-PCK checks passed. See evidence for existing shutdown warnings.'
+            echo '15 exported-PCK checks passed. See evidence for existing shutdown warnings.'
             echo 'Browser and physical-device play have not been verified by this workflow.'
           } >> "$GITHUB_STEP_SUMMARY"
