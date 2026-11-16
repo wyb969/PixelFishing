@@ -40,7 +40,7 @@ jobs:
           node-version: '22'
       - name: Validate game logic
         run: |
-          node --check dist/coast.js
+          node tools/test.cjs
           node tools/prepare-preview.cjs
       - name: Install official butler
         shell: bash

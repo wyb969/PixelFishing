@@ -1,11 +1,9 @@
-from pathlib import Path
-root=Path(__file__).resolve().parents[1]
-code=(root/'tools/verify_render.py').read_text(encoding='utf-8-sig')
-exec(compile(code.split("out=root/'analysis'")[0],str(root/'tools/verify_render.py'),'exec'))
-idx=next(i for i,s in enumerate(motion) if s.get('tackle',[0,0,0])[2]==4 and s['tackle'][3]>2)
-im=render((idx+.1)/15,day_time=45)
-im.resize((1440,810),Image.Resampling.NEAREST).save(root/'analysis/night-lure.png')
-im.crop((280,180,430,260)).resize((1200,640),Image.Resampling.NEAREST).save(root/'analysis/night-lure-detail.png')
+"""Isolated current GLSL lighting assertions plus full-scene EGL preview."""
+from render_engine import load_engine, ROOT
+from PIL import Image
+E=load_engine();ctx=E['ctx'];source=E['source'];common=E['common'];quad=E['buffer']([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1])
+root=ROOT;(root/'analysis').mkdir(exist_ok=True)
+E['render'](day=45).save(root/'analysis/lure-night.png')
 test=ctx.program(vertex_shader=source('attribute vec2 position;void main(){gl_Position=vec4(position,0.,1.);}',True),fragment_shader=source(common+'''
 void main(){float i=floor(gl_FragCoord.x);vec3 albedo=i<2.?vec3(.12,.62,.76):vec3(.08,.23,.30);
 vec2 p=vec2(360.,234.);if(mod(i,2.)>0.5)p.x+=100.;gl_FragColor=vec4(illuminateWater(albedo,p),1.);}

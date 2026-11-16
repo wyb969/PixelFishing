@@ -1,8 +1,9 @@
-from pathlib import Path
-root=Path(__file__).resolve().parents[1]
-exec(compile((root/'tools/verify_render.py').read_text(encoding='utf-8-sig').split("out=root/'analysis'")[0],str(root/'tools/verify_render.py'),'exec'))
-im=render(12,day_time=45);im.resize((1440,810),Image.Resampling.NEAREST).save(root/'analysis/campfire-night.png')
-im.crop((125,205,220,270)).resize((950,650),Image.Resampling.NEAREST).save(root/'analysis/campfire-detail.png')
+"""Isolated current GLSL lighting assertions plus full-scene EGL preview."""
+from render_engine import load_engine, ROOT
+from PIL import Image
+E=load_engine();ctx=E['ctx'];source=E['source'];common=E['common'];quad=E['buffer']([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1])
+root=ROOT;(root/'analysis').mkdir(exist_ok=True)
+E['render'](day=45).save(root/'analysis/campfire-night.png')
 test=ctx.program(vertex_shader=source('attribute vec2 position;void main(){gl_Position=vec4(position,0.,1.);}',True),fragment_shader=source(common+'void main(){vec2 p=campPosition()+vec2(gl_FragCoord.x-32.,gl_FragCoord.y-48.);vec4 fire=campLayer(p);gl_FragColor=vec4(fire.rgb*fire.a,1.);}'))
 tv=ctx.vertex_array(test,[(quad,'2f','position')]);fb=ctx.simple_framebuffer((64,64));fb.use();ctx.viewport=(0,0,64,64)
 def capture(day,t):
