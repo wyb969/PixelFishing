@@ -1,10 +1,10 @@
-// Three fixed cloud sprites built from ordinary rectangles. No noise or per-pixel masks.
+// Stepped, shared-topology cloud strips. Seasonal silhouettes morph without popping.
 (function(root){
  function geometry(){
-  const data=[],rows=[[-8,8,-12,-10],[-13,12,-10,-8],[-18,17,-8,-6],[-23,22,-6,-4],[-27,26,-4,-2],[-30,29,-2,0]];
-  for(const [cx,cy] of [[50,100],[240,145],[440,77]])rows.forEach(([l,r,t,b],i)=>{
-   const shade=i<4?[.96,.97,.95]:i===4?[.85,.90,.94]:[.72,.80,.88];
-   for(const [x,y] of [[l,t],[r,t],[l,b],[l,b],[r,t],[r,b]])data.push(cx,cy,x,y,...shade);
+  const data=[],widths=[8,14,21,25,30,34,38,40,37,30];
+  for(const [cx,cy] of [[50,100],[230,145],[410,77],[590,119],[770,65]])widths.forEach((width,i)=>{
+   const y=-20+i*2,shade=i<6?[.96,.97,.95]:i<8?[.85,.90,.94]:[.72,.80,.88];
+   for(const [x,yy] of [[-width,y],[width,y],[-width,y+2],[-width,y+2],[width,y],[width,y+2]])data.push(cx,cy,x,yy,...shade);
   });return new Float32Array(data);
  }
  const api={geometry};if(typeof module!=='undefined')module.exports=api;else root.SeaClouds=api;

@@ -8,7 +8,7 @@ void main(){
  float arc=pow(v,.58);
  float e=envelope(x);
  x-=arc*(8.+e*16.)*strength+sin(v*9.+particle.x*.18+time*.4)*1.4;
- x+=time*1.4;
+ x+=time*1.4+windField.y*3.;
  x=mod(x+70.,620.)-70.;
  float top=crest(x),bottom=foot(x);
  float y=mix(top,bottom,v);

@@ -1,23 +1,9 @@
-# PixelFish page presentation
+# Existing itch.io page assets
 
-Existing URL: https://ybwangrogger.itch.io/fixelfishing (keep unchanged).
-Display title: PixelFish
-Short description: A peaceful pixel sea. Cast a line, watch the sunset, and let the day drift by.
+Project: **FixelFishing** at https://ybwangrogger.itch.io/fixelfishing . GitHub source project remains **PixelFishing**; author: ybwangrogger.
 
-Cover: cover.png (630 x 500)
-Screenshots: day.png, sunset.png, night.png (1440 x 810; rendered from current game shaders)
-Description: description.html (paste into the description editor HTML/source mode)
-Suggested tags: Pixel Art, Fishing, Relaxing, 2D, Procedural Generation
-Status: In development
+- `description.html`: bilingual page description, controls, local-save/audio limitations and credits.
+- `cover.png`: 630×500 cover, composed from an actual current scene render.
+- `day.png`, `sunset.png`, `night.png`, `winter.png`, `rain.png`, `storm.png`: 1440×810 nearest-neighbor enlargements of current 480×270 shader output. These are actual game-scene renders, not browser UI or physical-phone screenshots.
 
-Theme:
-- Background: #102F40
-- Content background: #173E50
-- Text: #F5EBD4
-- Links/buttons: #79D5D2
-- Headers: #FFDDA6
-- Single column; browser embed 960 x 540; fullscreen button enabled
-
-Publishing: Edit game > Visibility & access > Public > Save.
-Draft is a visibility setting, not an indicator that a cover or description is missing.
-Online page edits and public release have NOT been applied by the asset generator.
+The page title, URL and html5 channel must stay unchanged. See `../../ITCH-PUBLISH.md` before merging: the main-branch workflow can upload the game automatically, but page text and imagery still need a separate edit.
