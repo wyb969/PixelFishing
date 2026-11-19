@@ -103,10 +103,16 @@ jobs:
           audit=subprocess.run(['python3','game/tools/audit_localization.py'],text=True,capture_output=True)
           Path('release-evidence/localization-audit.json').write_text(audit.stdout)
           assert audit.returncode==0,audit.stderr
+          # This already-frozen game package predates isolation of random hazards in its ice test.
+          surface_fixture=None
+          if os.environ['ROGGE_COMMIT']=='ff5798317a708f3c41944af871c9bc998a9aa622':
+              surface_fixture=Path(os.environ['RUNNER_TEMP'])/'smoke_environment_surface.gd'
+              subprocess.run(['curl','--fail','--location','--retry','3','https://raw.githubusercontent.com/wyb969/Rogge/72b0c0b36b7dd3274f1d3a68bcfc6b36c383753f/tools/smoke_environment_surface.gd','-o',str(surface_fixture)],check=True)
           checks=[]
           for name in ["smoke_menu_layout","smoke_session_toolbar","smoke_equipment_badges","smoke_three_cards","smoke_codex_menu","smoke_localization","smoke_debug_menu","smoke_palette_cards","smoke_combat_balance","smoke_relic_weapons","smoke_arcane_weapons","smoke_star_chain","smoke_weather_lighting","smoke_winter","smoke_world_snow","smoke_environment_surface","smoke_surface_art","smoke_wind_trails","smoke_electric_grid","smoke_minefield","smoke_ice_spikes","smoke_airborne_feedback","smoke_stage_hazards","smoke_boss_control_guard","smoke_boss_rhythm","smoke_beasts","smoke_trials","smoke_wooden_trial","smoke_resource_bounds","smoke_hero_art","smoke_stage_monster_art","smoke_runtime_optimization","smoke_boss_facing","smoke_forge","smoke_forge_stats","smoke_forge_drag"]:
               env=dict(os.environ,XDG_DATA_HOME=tempfile.mkdtemp(prefix='rogge-check-'))
-              result=subprocess.run([str(godot),'--headless','--rendering-method','gl_compatibility','--audio-driver','Dummy','--main-pack',str(pack),'--script','res://tools/'+name+'.gd'],env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
+              script=str(surface_fixture) if name=='smoke_environment_surface' and surface_fixture else 'res://tools/'+name+'.gd'
+              result=subprocess.run([str(godot),'--headless','--rendering-method','gl_compatibility','--audio-driver','Dummy','--main-pack',str(pack),'--script',script],env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=100)
               Path('release-evidence/'+name+'.log').write_text(result.stdout)
               errors=[s for s in result.stdout.splitlines() if re.search(r'SCRIPT ERROR|Parse Error|^ERROR:',s) and not re.fullmatch(r'ERROR: \d+ resources still in use at exit \(run with --verbose for details\)\.',s)]
               warnings=[s for s in result.stdout.splitlines() if 'leaked at exit' in s or 'resources still in use at exit' in s]
@@ -120,6 +126,7 @@ jobs:
           for name in ['index.html','index.js','index.wasm','index.pck']:assert name in manifest
           config=json.loads(re.search(r'const GODOT_CONFIG = (\{.*?\});',(web/'index.html').read_text()).group(1))
           for name,size in config['fileSizes'].items():assert manifest[name]['bytes']==size
+          print('ROGGE_WEB_MANIFEST '+json.dumps(manifest),flush=True)
           Path('release-evidence/web-manifest.json').write_text(json.dumps(manifest,indent=2))
           Path('release-evidence/release-info.json').write_text(json.dumps({'repository':'wyb969/Rogge','source_commit':os.environ['ROGGE_COMMIT'],'version':os.environ['BUILD_VERSION'],'target':os.environ['ITCH_TARGET'],'browser_qa':'not run','physical_device_qa':'not run'},indent=2))
           with zipfile.ZipFile('release-evidence/ROGGE-'+os.environ['BUILD_VERSION']+'-web.zip','w',zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
