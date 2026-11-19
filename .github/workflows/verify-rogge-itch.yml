@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 env:
-  EXPECTED_BUILD: "2404997"
-  EXPECTED_VERSION: "20261116-202250"
+  EXPECTED_BUILD: "2433648"
+  EXPECTED_VERSION: "20261119-103149"
   ITCH_TARGET: ybwangrogger/rogue-white:html
 
 jobs:
