@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ROGGE_COMMIT: d95f6a2b086f7658794749dda57626bebcf57548
-  BUILD_VERSION: 20261119-185039
+  ROGGE_COMMIT: ffb033613705090f0fc62dbd4f229d5c5a0283c3
+  BUILD_VERSION: 20261119-190641
   ITCH_TARGET: ybwangrogger/rogue-white:html
   GODOT_VERSION: 4.7
 
